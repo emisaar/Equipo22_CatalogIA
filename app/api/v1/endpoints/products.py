@@ -119,7 +119,7 @@ def semantic_search_products(
     min_similarity: float = Query(0.3, ge=0.0, le=1.0, description="Umbral mínimo de similitud (0-1)"),
 ):
     """
-    🔍 Búsqueda semántica de productos usando IA.
+    Búsqueda semántica de productos usando IA.
 
     Esta búsqueda utiliza embeddings y similitud semántica para encontrar
     productos relevantes basándose en el SIGNIFICADO del texto, no solo

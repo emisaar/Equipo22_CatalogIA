@@ -39,6 +39,9 @@ env/
 *.swo
 *~
 
+# Models cache
+models_cache/
+
 # Scripts
 scripts/
 
