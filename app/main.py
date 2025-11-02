@@ -6,7 +6,7 @@ from app.api.v1 import router as api_router
 from app.api import deps
 from app.core.config import settings
 from app.core.database import init_db
-from app.core.embeddings import embedding_service
+from app.services.embeddings import embedding_service
 import logging
 
 logger = logging.getLogger(__name__)

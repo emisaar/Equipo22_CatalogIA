@@ -4,7 +4,7 @@ from sqlalchemy import func
 from app.crud.base import CRUDBase
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
-from app.core.embeddings import embedding_service
+from app.services.embeddings import embedding_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,8 +20,8 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
             title=obj_in.title,
             description=obj_in.product_description,
             category=obj_in.category,
-            subcategory=obj_in.subcategory,
-            feature=obj_in.feature
+            brand=obj_in.brand,
+            color=obj_in.color
         )
 
         # Crear objeto Product con el embedding
@@ -43,7 +43,7 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
         update_data = obj_in.model_dump(exclude_unset=True)
 
         # Verificar si cambió algún campo que afecte el embedding
-        embedding_fields = ['title', 'product_description', 'category', 'subcategory', 'feature']
+        embedding_fields = ['title', 'product_description', 'category', 'brand', 'color']
         needs_new_embedding = any(field in update_data for field in embedding_fields)
 
         if needs_new_embedding:
@@ -52,8 +52,8 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
                 title=update_data.get('title', db_obj.title),
                 description=update_data.get('product_description', db_obj.product_description),
                 category=update_data.get('category', db_obj.category),
-                subcategory=update_data.get('subcategory', db_obj.subcategory),
-                feature=update_data.get('feature', db_obj.feature)
+                brand=update_data.get('brand', db_obj.brand),
+                color=update_data.get('color', db_obj.color)
             )
             update_data['product_embedding'] = embedding
 
@@ -79,23 +79,20 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
         db: Session,
         *,
         category: Optional[str] = None,
-        subcategory: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[Product]:
         query = db.query(Product)
-        
+
         if category:
             query = query.filter(Product.category == category)
-        if subcategory:
-            query = query.filter(Product.subcategory == subcategory)
         if min_price is not None:
             query = query.filter(Product.price >= min_price)
         if max_price is not None:
             query = query.filter(Product.price <= max_price)
-            
+
         return query.offset(skip).limit(limit).all()
 
     def count_by_filters(
@@ -103,7 +100,6 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
         db: Session,
         *,
         category: Optional[str] = None,
-        subcategory: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None
     ) -> int:
@@ -111,8 +107,6 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
 
         if category:
             query = query.filter(Product.category == category)
-        if subcategory:
-            query = query.filter(Product.subcategory == subcategory)
         if min_price is not None:
             query = query.filter(Product.price >= min_price)
         if max_price is not None:

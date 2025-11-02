@@ -20,7 +20,7 @@ def create_product(
     Genera automáticamente el embedding semántico del producto.
 
     Args:
-        - `db`: Sesión de base de datos
+        - `db`: Sesión de base de datos 
         - `product_in`: Datos del producto a crear
 
     Returns:
@@ -28,19 +28,6 @@ def create_product(
 
     Raises:
         `HTTPException`: 400 si ya existe un producto con el mismo EAN
-
-    Example:
-        ```json
-        {
-          "ean": "1234567890123",
-          "title": "Laptop Gaming",
-          "product_description": "Laptop potente para gaming",
-          "category": "Electronics",
-          "subcategory": "Computers",
-          "price": 25000,
-          "stock": 10
-        }
-        ```
     """
     existing_product = product.get_by_ean(db, ean=product_in.ean)
     if existing_product:
@@ -59,7 +46,6 @@ def list_products(
     skip: int = Query(0, ge=0, description="Número de productos a saltar para paginación"),
     limit: int = Query(100, ge=1, le=1000, description="Límite de productos por página"),
     category: Optional[str] = Query(None, description="Filtrar por categoría"),
-    subcategory: Optional[str] = Query(None, description="Filtrar por subcategoría"),
     min_price: Optional[float] = Query(None, ge=0, description="Precio mínimo"),
     max_price: Optional[float] = Query(None, ge=0, description="Precio máximo"),
 ):
@@ -70,22 +56,15 @@ def list_products(
         - `skip`: Número de productos a omitir (para paginación)
         - `limit`: Número máximo de productos a retornar
         - `category`: Filtro por categoría
-        - `subcategory`: Filtro por subcategoría
         - `min_price`: Precio mínimo
         - `max_price`: Precio máximo
 
     Returns:
         `ProductList`: Lista paginada de productos con metadatos
-
-    Example:
-        ```
-        GET /api/v1/products/?category=Electronics&min_price=100&limit=20
-        ```
     """
     products = product.get_by_filters(
         db=db,
         category=category,
-        subcategory=subcategory,
         min_price=min_price,
         max_price=max_price,
         skip=skip,
@@ -95,7 +74,6 @@ def list_products(
     total = product.count_by_filters(
         db=db,
         category=category,
-        subcategory=subcategory,
         min_price=min_price,
         max_price=max_price
     )
@@ -135,13 +113,6 @@ def semantic_search_products(
 
     Returns:
         `SemanticSearchResult`: Productos ordenados por relevancia con scores de similitud
-
-    Examples:
-        ```
-        GET /api/v1/products/search/semantic?q=laptop%20gaming&limit=5
-        GET /api/v1/products/search/semantic?q=electrónicos&min_similarity=0.5
-        GET /api/v1/products/search/semantic?q=regalo%20para%20mamá&category=Home
-        ```
     """
     results = product.semantic_search(
         db=db,
@@ -187,11 +158,6 @@ def get_product(
 
     Raises:
         `HTTPException`: 404 si el producto no existe
-
-    Example:
-        ```
-        GET /api/v1/products/123
-        ```
     """
     db_product = product.get(db, id=product_id)
     if not db_product:
@@ -222,15 +188,6 @@ def update_product(
     Raises:
         `HTTPException`: 404 si el producto no existe
         `HTTPException`: 400 si el nuevo EAN ya está en uso
-
-    Example:
-        ```json
-        {
-          "price": 24000,
-          "stock": 15,
-          "discount": 10
-        }
-        ```
     """
     db_product = product.get(db, id=product_id)
     if not db_product:
@@ -265,11 +222,6 @@ def delete_product(
 
     Raises:
         `HTTPException`: 404 si el producto no existe
-
-    Example:
-        ```
-        DELETE /api/v1/products/123
-        ```
     """
     db_product = product.get(db, id=product_id)
     if not db_product:

@@ -1,0 +1,1757 @@
+openapi: 3.1.0
+info:
+  title: CatalogIA API
+  description: FastAPI backend for CatalogIA platform with AI recommendations
+  version: 1.0.0
+  contact:
+    name: Equipo 22
+    email: 'equipo22@tec.mx'
+    url: http://localhost:8000
+servers:
+- url: http://localhost:8000
+  description: Local development server
+paths:
+  /api/v1/users/register:
+    post:
+      tags:
+      - users
+      summary: Create User
+      description: "Crear un nuevo usuario en el sistema.\n\nArgs:\n    `db`: Sesión\
+        \ de base de datos\n    `user_in`: Datos del usuario a crear\n\nReturns:\n\
+        \    `UserResponse`: Usuario creado con todos sus datos\n    \nRaises:\n \
+        \   `HTTPException`: 400 si ya existe un usuario con el mismo email o username"
+      operationId: create_user_api_v1_users_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/users/login:
+    post:
+      tags:
+      - users
+      summary: Login For Access Token
+      description: "Iniciar sesión y obtener token de acceso JWT.\n\nArgs:\n    `db`:\
+        \ Sesión de base de datos\n    `user_in`: Credenciales de login (email y password)\n\
+        \nReturns:\n    `Token`: Token de acceso JWT y tipo de token\n    \nRaises:\n\
+        \    `HTTPException`: 401 si las credenciales son incorrectas"
+      operationId: login_for_access_token_api_v1_users_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/users/me:
+    get:
+      tags:
+      - users
+      summary: Read User Me
+      description: "Obtener información del usuario autenticado actual.\n\nArgs:\n\
+        \    `current_user`: Usuario autenticado mediante token JWT\n\nReturns:\n\
+        \    `UserResponse`: Datos completos del usuario actual"
+      operationId: read_user_me_api_v1_users_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+      security:
+      - HTTPBearer: []
+  /api/v1/users/{user_id}:
+    get:
+      tags:
+      - users
+      summary: Read User
+      description: "Obtener un usuario específico por su ID.\n\nArgs:\n    `user_id`:\
+        \ ID del usuario a buscar\n    `db`: Sesión de base de datos\n\nReturns:\n\
+        \    `UserResponse`: Datos completos del usuario\n\nRaises:\n    `HTTPException`:\
+        \ 404 si el usuario no existe"
+      operationId: read_user_api_v1_users__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - users
+      summary: Update User
+      description: "Actualizar los datos de un usuario.\n\nArgs:\n    `db`: Sesión\
+        \ de base de datos\n    `user_id`: ID del usuario a actualizar\n    `user_in`:\
+        \ Datos del usuario a actualizar\n    `current_user`: Usuario autenticado\
+        \ actual\n\nReturns:\n    `UserResponse`: Usuario actualizado con los nuevos\
+        \ datos\n\nRaises:\n    `HTTPException`: 404 si el usuario no existe\n   \
+        \ `HTTPException`: 403 si no tienes permisos para actualizar el usuario"
+      operationId: update_user_api_v1_users__user_id__put
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - users
+      summary: Delete User
+      description: "Eliminar un usuario del sistema.\n\nArgs:\n    `db`: Sesión de\
+        \ base de datos\n    `user_id`: ID del usuario a eliminar\n    `current_user`:\
+        \ Usuario autenticado actual\n\nReturns:\n    `dict`: Mensaje de confirmación\
+        \ de eliminación\n\nRaises:\n    `HTTPException`: 404 si el usuario no existe\n\
+        \    `HTTPException`: 403 si no tienes permisos para eliminar el usuario"
+      operationId: delete_user_api_v1_users__user_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/products/:
+    post:
+      tags:
+      - products
+      summary: Create Product
+      description: "Crear un nuevo producto en el catálogo.\n\nGenera automáticamente\
+        \ el embedding semántico del producto.\n\nArgs:\n    - `db`: Sesión de base\
+        \ de datos \n    - `product_in`: Datos del producto a crear\n\nReturns:\n\
+        \    `ProductResponse`: Producto creado con todos sus datos\n\nRaises:\n \
+        \   `HTTPException`: 400 si ya existe un producto con el mismo EAN"
+      operationId: create_product_api_v1_products__post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse-Output'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - products
+      summary: List Products
+      description: "Listar productos con filtros opcionales y paginación.\n\nArgs:\n\
+        \    - `skip`: Número de productos a omitir (para paginación)\n    - `limit`:\
+        \ Número máximo de productos a retornar\n    - `category`: Filtro por categoría\n\
+        \    - `min_price`: Precio mínimo\n    - `max_price`: Precio máximo\n\nReturns:\n\
+        \    `ProductList`: Lista paginada de productos con metadatos"
+      operationId: list_products_api_v1_products__get
+      parameters:
+      - name: skip
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: Número de productos a saltar para paginación
+          default: 0
+          title: Skip
+        description: Número de productos a saltar para paginación
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          description: Límite de productos por página
+          default: 100
+          title: Limit
+        description: Límite de productos por página
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filtrar por categoría
+          title: Category
+        description: Filtrar por categoría
+      - name: min_price
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            minimum: 0
+          - type: 'null'
+          description: Precio mínimo
+          title: Min Price
+        description: Precio mínimo
+      - name: max_price
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            minimum: 0
+          - type: 'null'
+          description: Precio máximo
+          title: Max Price
+        description: Precio máximo
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/products/search/semantic:
+    get:
+      tags:
+      - products
+      summary: Semantic Search Products
+      description: "Búsqueda semántica de productos usando IA.\n\nEsta búsqueda utiliza\
+        \ embeddings y similitud semántica para encontrar\nproductos relevantes basándose\
+        \ en el SIGNIFICADO del texto, no solo\nen coincidencias exactas de palabras.\n\
+        \nArgs:\n    - `q`: Texto de búsqueda (ej: \"laptop para trabajar desde casa\"\
+        )\n    - `limit`: Número máximo de resultados a retornar\n    - `category`:\
+        \ Filtro opcional por categoría\n    - `min_price`: Precio mínimo del filtro\n\
+        \    - `max_price`: Precio máximo del filtro\n    - `min_similarity`: Umbral\
+        \ mínimo de similitud (0.3 recomendado, 0.5 restrictivo)\n\nReturns:\n   \
+        \ `SemanticSearchResult`: Productos ordenados por relevancia con scores de\
+        \ similitud"
+      operationId: semantic_search_products_api_v1_products_search_semantic_get
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          description: Texto de búsqueda
+          title: Q
+        description: Texto de búsqueda
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Número de resultados
+          default: 10
+          title: Limit
+        description: Número de resultados
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filtrar por categoría
+          title: Category
+        description: Filtrar por categoría
+      - name: min_price
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            minimum: 0
+          - type: 'null'
+          description: Precio mínimo
+          title: Min Price
+        description: Precio mínimo
+      - name: max_price
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            minimum: 0
+          - type: 'null'
+          description: Precio máximo
+          title: Max Price
+        description: Precio máximo
+      - name: min_similarity
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 1
+          minimum: 0
+          description: Umbral mínimo de similitud (0-1)
+          default: 0.3
+          title: Min Similarity
+        description: Umbral mínimo de similitud (0-1)
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/products/{product_id}:
+    get:
+      tags:
+      - products
+      summary: Get Product
+      description: "Obtener un producto específico por su ID.\n\nArgs:\n    - `product_id`:\
+        \ ID del producto a buscar\n\nReturns:\n    `ProductResponse`: Datos completos\
+        \ del producto\n\nRaises:\n    `HTTPException`: 404 si el producto no existe"
+      operationId: get_product_api_v1_products__product_id__get
+      parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Product Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse-Output'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - products
+      summary: Update Product
+      description: "Actualizar un producto existente.\n\nRegenera automáticamente\
+        \ el embedding si se modifican campos relevantes\n(título, descripción, categoría,\
+        \ subcategoría, o características).\n\nArgs:\n    - `product_id`: ID del producto\
+        \ a actualizar\n    - `product_in`: Datos a actualizar (solo campos presentes\
+        \ se modifican)\n\nReturns:\n    `ProductResponse`: Producto actualizado\n\
+        \nRaises:\n    `HTTPException`: 404 si el producto no existe\n    `HTTPException`:\
+        \ 400 si el nuevo EAN ya está en uso"
+      operationId: update_product_api_v1_products__product_id__put
+      parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Product Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse-Output'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - products
+      summary: Delete Product
+      description: "Eliminar un producto del catálogo.\n\nArgs:\n    - `product_id`:\
+        \ ID del producto a eliminar\n\nReturns:\n    `dict`: Mensaje de confirmación\n\
+        \nRaises:\n    `HTTPException`: 404 si el producto no existe"
+      operationId: delete_product_api_v1_products__product_id__delete
+      parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Product Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/orders/:
+    post:
+      tags:
+      - orders
+      summary: Create Order
+      description: "Crear una nueva orden de compra.\n\nArgs:\n    `db`: Sesión de\
+        \ base de datos\n    `order_in`: Datos de la orden a crear\n    `current_user`:\
+        \ Usuario autenticado que realiza la orden\n\nReturns:\n    `OrderResponse`:\
+        \ Orden creada con el total calculado\n    \nRaises:\n    `HTTPException`:\
+        \ 404 si el producto no existe\n    `HTTPException`: 400 si no hay suficiente\
+        \ stock"
+      operationId: create_order_api_v1_orders__post
+      security:
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - orders
+      summary: List User Orders
+      description: "Obtener todas las órdenes del usuario autenticado.\n\nArgs:\n\
+        \    `db`: Sesión de base de datos\n    `current_user`: Usuario autenticado\
+        \ actual\n    `skip`: Número de órdenes a omitir (para paginación)\n    `limit`:\
+        \ Número máximo de órdenes a retornar\n\nReturns:\n    `OrderList`: Lista\
+        \ paginada de órdenes del usuario"
+      operationId: list_user_orders_api_v1_orders__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: skip
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: Número de órdenes a saltar para paginación
+          default: 0
+          title: Skip
+        description: Número de órdenes a saltar para paginación
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          description: Límite de órdenes por página
+          default: 100
+          title: Limit
+        description: Límite de órdenes por página
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/orders/{order_id}:
+    get:
+      tags:
+      - orders
+      summary: Get Order
+      description: "Obtener una orden específica por su ID.\n\nArgs:\n    `order_id`:\
+        \ UUID de la orden a buscar\n    `db`: Sesión de base de datos\n    `current_user`:\
+        \ Usuario autenticado actual\n\nReturns:\n    `OrderResponse`: Datos completos\
+        \ de la orden\n    \nRaises:\n    `HTTPException`: 404 si la orden no existe\n\
+        \    `HTTPException`: 403 si la orden no pertenece al usuario"
+      operationId: get_order_api_v1_orders__order_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - orders
+      summary: Cancel Order
+      description: "Cancelar una orden (cambiar estado a 'cancelled').\n\nArgs:\n\
+        \    `db`: Sesión de base de datos\n    `order_id`: UUID de la orden a cancelar\n\
+        \    `current_user`: Usuario autenticado actual\n\nReturns:\n    `dict`: Mensaje\
+        \ de confirmación de cancelación\n    \nRaises:\n    `HTTPException`: 404\
+        \ si la orden no existe\n    `HTTPException`: 403 si la orden no pertenece\
+        \ al usuario\n    `HTTPException`: 400 si la orden ya está completada"
+      operationId: cancel_order_api_v1_orders__order_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/orders/{order_id}/status:
+    put:
+      tags:
+      - orders
+      summary: Update Order Status
+      description: "Actualizar el estado de una orden.\n\nArgs:\n    `db`: Sesión\
+        \ de base de datos\n    `order_id`: UUID de la orden a actualizar\n    `status_update`:\
+        \ Nuevo estado de la orden\n    `current_user`: Usuario autenticado actual\n\
+        \nReturns:\n    `OrderResponse`: Orden con el estado actualizado\n    \nRaises:\n\
+        \    `HTTPException`: 404 si la orden no existe\n    `HTTPException`: 403\
+        \ si la orden no pertenece al usuario\n    `HTTPException`: 400 si el estado\
+        \ es inválido"
+      operationId: update_order_status_api_v1_orders__order_id__status_put
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Order Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/wishlist/:
+    get:
+      tags:
+      - wishlist
+      summary: Get User Wishlist
+      description: "Obtener la lista de deseos completa del usuario autenticado.\n\
+        \nArgs:\n    `db`: Sesión de base de datos\n    `current_user`: Usuario autenticado\
+        \ actual\n\nReturns:\n    `WishlistList`: Lista completa de productos en la\
+        \ wishlist con detalles del producto"
+      operationId: get_user_wishlist_api_v1_wishlist__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WishlistList'
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - wishlist
+      summary: Add To Wishlist
+      description: "Agregar un producto a la lista de deseos del usuario.\n\nArgs:\n\
+        \    `db`: Sesión de base de datos\n    `wishlist_in`: Datos del producto\
+        \ a agregar\n    `current_user`: Usuario autenticado actual\n\nReturns:\n\
+        \    `WishlistResponse`: Item agregado a la wishlist\n    \nRaises:\n    `HTTPException`:\
+        \ 404 si el producto no existe\n    `HTTPException`: 400 si el producto ya\
+        \ está en la wishlist"
+      operationId: add_to_wishlist_api_v1_wishlist__post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WishlistCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WishlistResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /api/v1/wishlist/{product_id}:
+    delete:
+      tags:
+      - wishlist
+      summary: Remove From Wishlist
+      description: "Eliminar un producto de la lista de deseos del usuario.\n\nArgs:\n\
+        \    `db`: Sesión de base de datos\n    `product_id`: UUID del producto a\
+        \ eliminar de la wishlist\n    `current_user`: Usuario autenticado actual\n\
+        \nReturns:\n    `dict`: Mensaje de confirmación de eliminación\n    \nRaises:\n\
+        \    `HTTPException`: 404 si el producto no está en la wishlist"
+      operationId: remove_from_wishlist_api_v1_wishlist__product_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Product Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/wishlist/check/{product_id}:
+    get:
+      tags:
+      - wishlist
+      summary: Check Product In Wishlist
+      description: "Verificar si un producto específico está en la lista de deseos\
+        \ del usuario.\n\nArgs:\n    `product_id`: UUID del producto a verificar\n\
+        \    `db`: Sesión de base de datos\n    `current_user`: Usuario autenticado\
+        \ actual\n\nReturns:\n    `dict`: Indicador booleano de si el producto está\
+        \ en la wishlist"
+      operationId: check_product_in_wishlist_api_v1_wishlist_check__product_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Product Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /:
+    get:
+      summary: Root
+      description: Root endpoint
+      operationId: root__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health:
+    get:
+      summary: Health Check
+      description: Health check endpoint
+      operationId: health_check_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+      description: Error de validación HTTP que contiene una lista de errores de validación
+        detallados.
+    OrderCreate:
+      properties:
+        product_id:
+          type: integer
+          title: Product Id
+        quantity:
+          type: integer
+          exclusiveMinimum: 0
+          title: Quantity
+      type: object
+      required:
+      - product_id
+      - quantity
+      title: OrderCreate
+      description: Esquema para crear una nueva orden de compra. Requiere el ID del
+        producto y la cantidad deseada. El total se calcula automáticamente.
+    OrderList:
+      properties:
+        orders:
+          items:
+            $ref: '#/components/schemas/OrderResponse'
+          type: array
+          title: Orders
+        total:
+          type: integer
+          title: Total
+        skip:
+          type: integer
+          title: Skip
+        limit:
+          type: integer
+          title: Limit
+      type: object
+      required:
+      - orders
+      - total
+      - skip
+      - limit
+      title: OrderList
+      description: Respuesta paginada con lista de órdenes del usuario, incluyendo
+        el total de órdenes y los parámetros de paginación.
+    OrderResponse:
+      properties:
+        product_id:
+          type: integer
+          title: Product Id
+        quantity:
+          type: integer
+          exclusiveMinimum: 0
+          title: Quantity
+        id:
+          type: integer
+          title: Id
+        user_id:
+          type: integer
+          title: User Id
+        total_amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Total Amount
+        status:
+          type: string
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - product_id
+      - quantity
+      - id
+      - user_id
+      - total_amount
+      - status
+      - created_at
+      title: OrderResponse
+      description: Esquema de respuesta con los detalles completos de una orden, incluyendo
+        ID, usuario, producto, cantidad, total calculado, estado y fecha de creación.
+    OrderStatusUpdate:
+      properties:
+        status:
+          type: string
+          pattern: ^(pending|completed|cancelled)$
+          title: Status
+      type: object
+      required:
+      - status
+      title: OrderStatusUpdate
+      description: 'Esquema para actualizar el estado de una orden. Estados válidos:
+        pending (pendiente), completed (completada), cancelled (cancelada).'
+    ProductCreate:
+      properties:
+        ean:
+          type: string
+          maxLength: 13
+          minLength: 13
+          title: Ean
+        title:
+          type: string
+          title: Title
+        brand:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Brand
+        product_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Description
+        category:
+          type: string
+          title: Category
+        price:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Price
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        discount:
+          anyOf:
+          - type: number
+            maximum: 100
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Discount
+          default: 0
+        rating:
+          anyOf:
+          - type: number
+            maximum: 5
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Rating
+          default: 0
+        stock:
+          type: integer
+          minimum: 0
+          title: Stock
+        sponsored:
+          type: boolean
+          title: Sponsored
+          default: false
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+      type: object
+      required:
+      - ean
+      - title
+      - category
+      - price
+      - stock
+      title: ProductCreate
+      description: Esquema para crear un nuevo producto en el catálogo. Requiere EAN,
+        título, categoría, precio y stock. Genera automáticamente el embedding semántico.
+    ProductList:
+      properties:
+        products:
+          items:
+            $ref: '#/components/schemas/ProductResponse-Output'
+          type: array
+          title: Products
+        total:
+          type: integer
+          title: Total
+        skip:
+          type: integer
+          title: Skip
+        limit:
+          type: integer
+          title: Limit
+      type: object
+      required:
+      - products
+      - total
+      - skip
+      - limit
+      title: ProductList
+      description: Respuesta paginada con lista de productos, incluyendo el total
+        de productos disponibles y los parámetros de paginación aplicados.
+    ProductResponse-Input:
+      properties:
+        ean:
+          type: string
+          maxLength: 13
+          minLength: 13
+          title: Ean
+        title:
+          type: string
+          title: Title
+        brand:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Brand
+        product_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Description
+        category:
+          type: string
+          title: Category
+        price:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Price
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        discount:
+          anyOf:
+          - type: number
+            maximum: 100
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Discount
+          default: 0
+        rating:
+          anyOf:
+          - type: number
+            maximum: 5
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Rating
+          default: 0
+        stock:
+          type: integer
+          minimum: 0
+          title: Stock
+        sponsored:
+          type: boolean
+          title: Sponsored
+          default: false
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+        id:
+          type: integer
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - ean
+      - title
+      - category
+      - price
+      - stock
+      - id
+      - created_at
+      - updated_at
+      title: ProductResponse
+      description: Esquema de respuesta con la información completa de un producto,
+        incluyendo todos sus atributos, ID y metadatos de tiempo.
+    ProductResponse-Output:
+      properties:
+        ean:
+          type: string
+          maxLength: 13
+          minLength: 13
+          title: Ean
+        title:
+          type: string
+          title: Title
+        brand:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Brand
+        product_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Description
+        category:
+          type: string
+          title: Category
+        price:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Price
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        discount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Discount
+          default: 0
+        rating:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Rating
+          default: 0
+        stock:
+          type: integer
+          minimum: 0
+          title: Stock
+        sponsored:
+          type: boolean
+          title: Sponsored
+          default: false
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+        id:
+          type: integer
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - ean
+      - title
+      - category
+      - price
+      - stock
+      - id
+      - created_at
+      - updated_at
+      title: ProductResponse
+      description: Esquema de respuesta con la información completa de un producto,
+        con campos numéricos serializados como strings para precisión decimal.
+    ProductUpdate:
+      properties:
+        ean:
+          anyOf:
+          - type: string
+            maxLength: 13
+            minLength: 13
+          - type: 'null'
+          title: Ean
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        brand:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Brand
+        product_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Description
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        price:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Price
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        discount:
+          anyOf:
+          - type: number
+            maximum: 100
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Discount
+        rating:
+          anyOf:
+          - type: number
+            maximum: 5
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Rating
+        stock:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+          title: Stock
+        sponsored:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Sponsored
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+      type: object
+      title: ProductUpdate
+      description: Esquema para actualizar un producto existente. Todos los campos
+        son opcionales. Si se modifican campos relevantes, se regenera automáticamente
+        el embedding semántico.
+    ProductWithScore-Input:
+      properties:
+        ean:
+          type: string
+          maxLength: 13
+          minLength: 13
+          title: Ean
+        title:
+          type: string
+          title: Title
+        brand:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Brand
+        product_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Description
+        category:
+          type: string
+          title: Category
+        price:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Price
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        discount:
+          anyOf:
+          - type: number
+            maximum: 100
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Discount
+          default: 0
+        rating:
+          anyOf:
+          - type: number
+            maximum: 5
+            minimum: 0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Rating
+          default: 0
+        stock:
+          type: integer
+          minimum: 0
+          title: Stock
+        sponsored:
+          type: boolean
+          title: Sponsored
+          default: false
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+        id:
+          type: integer
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        similarity_score:
+          type: number
+          maximum: 1
+          minimum: 0
+          title: Similarity Score
+          description: Score de similitud (0-1, mayor es más similar)
+      type: object
+      required:
+      - ean
+      - title
+      - category
+      - price
+      - stock
+      - id
+      - created_at
+      - updated_at
+      - similarity_score
+      title: ProductWithScore
+      description: Producto con score de similitud semántica.
+    ProductWithScore-Output:
+      properties:
+        ean:
+          type: string
+          maxLength: 13
+          minLength: 13
+          title: Ean
+        title:
+          type: string
+          title: Title
+        brand:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Brand
+        product_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Description
+        category:
+          type: string
+          title: Category
+        price:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Price
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        discount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Discount
+          default: 0
+        rating:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Rating
+          default: 0
+        stock:
+          type: integer
+          minimum: 0
+          title: Stock
+        sponsored:
+          type: boolean
+          title: Sponsored
+          default: false
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+        id:
+          type: integer
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        similarity_score:
+          type: number
+          maximum: 1
+          minimum: 0
+          title: Similarity Score
+          description: Score de similitud (0-1, mayor es más similar)
+      type: object
+      required:
+      - ean
+      - title
+      - category
+      - price
+      - stock
+      - id
+      - created_at
+      - updated_at
+      - similarity_score
+      title: ProductWithScore
+      description: Producto con score de similitud semántica.
+    SemanticSearchResult:
+      properties:
+        products:
+          items:
+            $ref: '#/components/schemas/ProductWithScore-Output'
+          type: array
+          title: Products
+        total:
+          type: integer
+          title: Total
+        skip:
+          type: integer
+          title: Skip
+        limit:
+          type: integer
+          title: Limit
+        min_similarity:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Min Similarity
+          description: Umbral mínimo de similitud aplicado
+      type: object
+      required:
+      - products
+      - total
+      - skip
+      - limit
+      title: SemanticSearchResult
+      description: Resultado de búsqueda semántica con scores de similitud.
+    Token:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          type: string
+          title: Token Type
+      type: object
+      required:
+      - access_token
+      - token_type
+      title: Token
+      description: Esquema de respuesta de autenticación con el token JWT de acceso
+        y el tipo de token (bearer).
+    UserCreate:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        username:
+          type: string
+          title: Username
+        given_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Given Name
+        paternal_surname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Paternal Surname
+        maternal_surname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Maternal Surname
+        password:
+          type: string
+          title: Password
+      type: object
+      required:
+      - email
+      - username
+      - password
+      title: UserCreate
+      description: Esquema para crear un nuevo usuario en el sistema. Requiere email,
+        nombre de usuario y contraseña. Los nombres son opcionales.
+    UserLogin:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: UserLogin
+      description: Esquema para iniciar sesión en el sistema. Requiere email y contraseña
+        para autenticar al usuario.
+    UserResponse:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        username:
+          type: string
+          title: Username
+        given_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Given Name
+        paternal_surname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Paternal Surname
+        maternal_surname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Maternal Surname
+        id:
+          type: integer
+          title: Id
+        is_verified:
+          type: boolean
+          title: Is Verified
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - email
+      - username
+      - id
+      - is_verified
+      - created_at
+      - updated_at
+      title: UserResponse
+      description: Esquema de respuesta con la información completa de un usuario,
+        incluyendo ID, estado de verificación y fechas de creación/actualización.
+    UserUpdate:
+      properties:
+        email:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: Email
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        given_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Given Name
+        paternal_surname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Paternal Surname
+        maternal_surname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Maternal Surname
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+      type: object
+      title: UserUpdate
+      description: Esquema para actualizar la información de un usuario. Todos los
+        campos son opcionales, solo se actualizan los campos proporcionados.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+      description: Detalle de un error de validación individual que incluye la ubicación
+        del error, el mensaje descriptivo y el tipo de error.
+    WishlistCreate:
+      properties:
+        product_id:
+          type: integer
+          title: Product Id
+      type: object
+      required:
+      - product_id
+      title: WishlistCreate
+      description: Esquema para agregar un producto a la lista de deseos del usuario.
+        Requiere únicamente el ID del producto.
+    WishlistList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/WishlistWithProduct-Output'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: WishlistList
+      description: Respuesta con la lista completa de productos en la wishlist del
+        usuario, incluyendo los detalles de cada producto y el total de items.
+    WishlistResponse:
+      properties:
+        product_id:
+          type: integer
+          title: Product Id
+        id:
+          type: integer
+          title: Id
+        user_id:
+          type: integer
+          title: User Id
+        added_at:
+          type: string
+          format: date-time
+          title: Added At
+      type: object
+      required:
+      - product_id
+      - id
+      - user_id
+      - added_at
+      title: WishlistResponse
+      description: Esquema de respuesta con la información de un item en la wishlist,
+        incluyendo el ID del producto, usuario y la fecha en que fue agregado.
+    WishlistWithProduct-Input:
+      properties:
+        product_id:
+          type: integer
+          title: Product Id
+        id:
+          type: integer
+          title: Id
+        user_id:
+          type: integer
+          title: User Id
+        added_at:
+          type: string
+          format: date-time
+          title: Added At
+        product:
+          $ref: '#/components/schemas/ProductResponse-Input'
+      type: object
+      required:
+      - product_id
+      - id
+      - user_id
+      - added_at
+      - product
+      title: WishlistWithProduct
+      description: Item de wishlist con la información completa del producto asociado,
+        incluyendo todos los detalles del producto.
+    WishlistWithProduct-Output:
+      properties:
+        product_id:
+          type: integer
+          title: Product Id
+        id:
+          type: integer
+          title: Id
+        user_id:
+          type: integer
+          title: User Id
+        added_at:
+          type: string
+          format: date-time
+          title: Added At
+        product:
+          $ref: '#/components/schemas/ProductResponse-Output'
+      type: object
+      required:
+      - product_id
+      - id
+      - user_id
+      - added_at
+      - product
+      title: WishlistWithProduct
+      description: Item de wishlist con la información completa del producto asociado,
+        con campos numéricos serializados como strings.
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer

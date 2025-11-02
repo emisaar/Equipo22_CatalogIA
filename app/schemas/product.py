@@ -7,15 +7,14 @@ from pydantic import BaseModel, Field, ConfigDict
 class ProductBase(BaseModel):
     ean: str = Field(..., min_length=13, max_length=13)
     title: str
+    brand: Optional[str] = None
     product_description: Optional[str] = None
     category: str
-    subcategory: Optional[str] = None
     price: Decimal = Field(..., gt=0)
-    currency: str = "MXN"
+    color: Optional[str] = None
     discount: Decimal = Field(default=0, ge=0, le=100)
     rating: Decimal = Field(default=0, ge=0, le=5)
     stock: int = Field(..., ge=0)
-    feature: Optional[str] = None
     sponsored: bool = False
     image_url: Optional[str] = None
 
@@ -27,15 +26,14 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     ean: Optional[str] = Field(None, min_length=13, max_length=13)
     title: Optional[str] = None
+    brand: Optional[str] = None
     product_description: Optional[str] = None
     category: Optional[str] = None
-    subcategory: Optional[str] = None
     price: Optional[Decimal] = Field(None, gt=0)
-    currency: Optional[str] = None
+    color: Optional[str] = None
     discount: Optional[Decimal] = Field(None, ge=0, le=100)
     rating: Optional[Decimal] = Field(None, ge=0, le=5)
     stock: Optional[int] = Field(None, ge=0)
-    feature: Optional[str] = None
     sponsored: Optional[bool] = None
     image_url: Optional[str] = None
 

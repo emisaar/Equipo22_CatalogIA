@@ -81,8 +81,8 @@ class EmbeddingService:
         title: str,
         description: str = None,
         category: str = None,
-        subcategory: str = None,
-        feature: str = None
+        brand: str = None,
+        color: str = None
     ) -> List[float]:
         """
         Genera un embedding combinado para un producto.
@@ -93,8 +93,8 @@ class EmbeddingService:
             title: Título del producto
             description: Descripción del producto (opcional)
             category: Categoría del producto (opcional)
-            subcategory: Subcategoría del producto (opcional)
-            feature: Características del producto (opcional)
+            brand: Marca del producto (opcional)
+            color: Color del producto (opcional)
 
         Returns:
             Lista de floats representando el vector de embedding (384 dimensiones)
@@ -107,19 +107,21 @@ class EmbeddingService:
             parts.append(title)
             parts.append(title)
 
+        # Marca (importante para búsqueda)
+        if brand:
+            parts.append(f"Marca: {brand}")
+
         # Descripción
         if description:
             parts.append(description)
 
-        # Categoría y subcategoría
+        # Categoría
         if category:
             parts.append(f"Categoría: {category}")
-        if subcategory:
-            parts.append(f"Subcategoría: {subcategory}")
 
-        # Características
-        if feature:
-            parts.append(feature)
+        # Color
+        if color:
+            parts.append(f"Color: {color}")
 
         combined_text = " ".join(parts)
         return self.generate_embedding(combined_text)

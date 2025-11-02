@@ -44,6 +44,7 @@ models_cache/
 
 # Scripts
 scripts/
+*.jsonl
 
 # OS
 .DS_Store
