@@ -1,34 +1,37 @@
 """
-Servicio de generación de embeddings para productos usando Sentence Transformers.
+Servicio de generación de embeddings para productos usando Ollama + Gemma Embeddings.
 """
-from sentence_transformers import SentenceTransformer
 from typing import List, Optional
 import logging
-import os
+import requests
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
     """
-    Servicio singleton para generar embeddings de texto usando Sentence Transformers.
+    Servicio singleton para generar embeddings de texto usando Ollama + Gemma Embeddings.
 
-    Utiliza el modelo 'paraphrase-multilingual-MiniLM-L12-v2' que:
+    Utiliza el modelo 'embeddinggemma' a través de Ollama que:
     - Soporta múltiples idiomas (incluyendo español)
-    - Genera vectores de 384 dimensiones
-    - Es 5x más pequeño y 2x más rápido que mpnet-base
-    - Optimizado para e-commerce y búsquedas semánticas
+    - Genera vectores de 768 dimensiones
+    - Alta calidad para búsquedas semánticas
+    - Ejecuta localmente con Ollama
     """
 
     _instance = None
-    _model: Optional[SentenceTransformer] = None
+    _ollama_available: Optional[bool] = None
 
-    # Modelo más ligero y rápido
-    MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
-    EMBEDDING_DIMENSION = 384  # Reducido de 768 a 384
+    # Configuración de Ollama
+    MODEL_NAME = "embeddinggemma"
+    EMBEDDING_DIMENSION = 768
 
-    # Directorio para cachear el modelo localmente
-    CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "models_cache")
+    @property
+    def OLLAMA_HOST(self) -> str:
+        """Get Ollama host from settings."""
+        return settings.OLLAMA_HOST
 
     def __new__(cls):
         if cls._instance is None:
@@ -36,45 +39,100 @@ class EmbeddingService:
         return cls._instance
 
     def __init__(self):
-        # El modelo se cargará solo cuando se necesite por primera vez
-        if not os.path.exists(self.CACHE_DIR):
-            os.makedirs(self.CACHE_DIR, exist_ok=True)
-            logger.info(f"Directorio de caché creado: {self.CACHE_DIR}")
+        pass
 
-    def _load_model(self):
+    def _check_ollama(self) -> bool:
         """
-        Carga el modelo solo cuando se necesita (lazy loading).
+        Verifica si Ollama está disponible y el modelo está instalado.
         """
-        if self._model is None:
-            logger.info(f"Cargando modelo de embeddings: {self.MODEL_NAME}")
-            logger.info(f"Usando directorio de caché: {self.CACHE_DIR}")
+        if self._ollama_available is not None:
+            return self._ollama_available
 
-            # Cargar modelo con caché local
-            self._model = SentenceTransformer(
-                self.MODEL_NAME,
-                cache_folder=self.CACHE_DIR
-            )
-            logger.info("Modelo de embeddings cargado exitosamente")
+        try:
+            response = requests.get(f"{self.OLLAMA_HOST}/api/tags", timeout=2)
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                model_names = [m["name"] for m in models]
 
-    def generate_embedding(self, text: str) -> List[float]:
+                if any(self.MODEL_NAME in name for name in model_names):
+                    self._ollama_available = True
+                    logger.info(f"Ollama disponible con modelo '{self.MODEL_NAME}'")
+                    return True
+                else:
+                    logger.error(f"Modelo '{self.MODEL_NAME}' no encontrado en Ollama")
+                    self._ollama_available = False
+                    return False
+            else:
+                logger.error(f"Ollama no responde correctamente (status: {response.status_code})")
+                self._ollama_available = False
+                return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"No se puede conectar con Ollama: {e}")
+            self._ollama_available = False
+            return False
+
+    def generate_embedding(self, text: str, is_query: bool = True) -> List[float]:
         """
-        Genera un embedding para un texto dado.
+        Genera un embedding para un texto dado usando Ollama + Gemma.
+        - Para queries: "retrieval_query: [texto]"
+        - Para documentos: "retrieval_document: [texto]"
 
         Args:
             text: Texto a convertir en embedding
+            is_query: True si es una query de búsqueda, False si es un documento
 
         Returns:
-            Lista de floats representando el vector de embedding (384 dimensiones)
-        """
-        # Lazy loading: cargar modelo solo cuando se necesita
-        self._load_model()
+            Lista de floats representando el vector de embedding (768 dimensiones)
 
+        Raises:
+            RuntimeError: Si Ollama no está disponible o falla la generación
+        """
         if not text or not text.strip():
             # Retornar vector de ceros si el texto está vacío
             return [0.0] * self.EMBEDDING_DIMENSION
 
-        embedding = self._model.encode(text, convert_to_numpy=True)
-        return embedding.tolist()
+        # Verificar que Ollama esté disponible
+        if not self._check_ollama():
+            raise RuntimeError(
+                f"Ollama no está disponible o el modelo '{self.MODEL_NAME}' no está instalado. "
+                f"Instala con: ollama pull {self.MODEL_NAME}"
+            )
+
+        # Agregar prefijo correcto según tipo (query o documento)
+        prefix = "retrieval_query: " if is_query else "retrieval_document: "
+        prefixed_text = f"{prefix}{text}"
+
+        try:
+            # Llamar a la API de Ollama para generar el embedding
+            response = requests.post(
+                f"{self.OLLAMA_HOST}/api/embed",
+                json={
+                    "model": self.MODEL_NAME,
+                    "input": prefixed_text
+                },
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                embedding = data["embeddings"][0]
+
+                # Validar dimensión
+                if len(embedding) != self.EMBEDDING_DIMENSION:
+                    logger.warning(
+                        f"Dimensión inesperada: {len(embedding)} (esperado: {self.EMBEDDING_DIMENSION})"
+                    )
+
+                return embedding
+            else:
+                raise RuntimeError(
+                    f"Error al generar embedding: {response.status_code} - {response.text}"
+                )
+
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Timeout al generar embedding con Ollama")
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Error de conexión con Ollama: {e}")
 
     def generate_product_embedding(
         self,
@@ -97,51 +155,60 @@ class EmbeddingService:
             color: Color del producto (opcional)
 
         Returns:
-            Lista de floats representando el vector de embedding (384 dimensiones)
+            Lista de floats representando el vector de embedding (768 dimensiones)
         """
-        # Construir texto combinado ponderando campos importantes
         parts = []
 
-        # Título es el más importante, lo incluimos 2 veces
+        # Título completo (contiene tipo de producto)
         if title:
             parts.append(title)
-            parts.append(title)
 
-        # Marca (importante para búsqueda)
+        # Atributos clave sin etiquetas
         if brand:
-            parts.append(f"Marca: {brand}")
+            parts.append(brand)
 
-        # Descripción
-        if description:
-            parts.append(description)
-
-        # Categoría
-        if category:
-            parts.append(f"Categoría: {category}")
-
-        # Color
         if color:
-            parts.append(f"Color: {color}")
+            parts.append(color)
 
-        combined_text = " ".join(parts)
-        return self.generate_embedding(combined_text)
+        if category:
+            parts.append(category)
+
+        # Descripción breve
+        if description:
+            desc_short = description[:80].strip()
+            if desc_short:
+                parts.append(desc_short)
+
+        # Unir con puntos para mejor separación semántica
+        combined_text = ". ".join(parts)
+        # Los productos son documentos (prefijo: "retrieval_document:")
+        return self.generate_embedding(combined_text, is_query=False)
 
     def warmup(self):
         """
-        Pre-carga el modelo para evitar latencia en la primera petición.
+        Verifica disponibilidad de Ollama y hace un test de embedding.
         Se puede llamar en el startup de la aplicación.
         """
-        logger.info("Iniciando warmup del modelo de embeddings...")
-        self._load_model()
-        # Generar un embedding de prueba para asegurar que todo funciona
-        _ = self.generate_embedding("warmup test")
-        logger.info("Warmup completado")
+        logger.info("Verificando disponibilidad de Ollama...")
+        if not self._check_ollama():
+            logger.error(
+                f"⚠ Ollama no está disponible. Asegúrate de que esté corriendo: "
+                f"'ollama serve' y que el modelo esté instalado: 'ollama pull {self.MODEL_NAME}'"
+            )
+            return
+
+        # Generar un embedding de prueba (como query)
+        try:
+            _ = self.generate_embedding("warmup test", is_query=True)
+            logger.info("✓ Ollama configurado correctamente")
+        except Exception as e:
+            logger.error(f"✗ Error en warmup: {e}")
 
     def is_model_loaded(self) -> bool:
         """
-        Verifica si el modelo ya está cargado en memoria.
+        Verifica si Ollama está disponible.
         """
-        return self._model is not None
+        return self._check_ollama()
 
 
 # Instancia global singleton

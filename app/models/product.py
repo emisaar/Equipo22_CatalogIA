@@ -20,7 +20,7 @@ class Product(Base):
     stock = Column(Integer, nullable=False, default=0)
     sponsored = Column(Boolean, default=False)
     image_url = Column(Text)
-    product_embedding = Column(Vector(384))
+    product_embedding = Column(Vector(768))
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 

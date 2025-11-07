@@ -28,8 +28,8 @@ services:
     env_file:
       - .env
     environment:
-      # Override DATABASE_URL to use docker service name instead of localhost
       - DATABASE_URL=postgresql://user:password@postgres:5432/catalogia
+      - OLLAMA_HOST=http://host.docker.internal:11434
 
 volumes:
   postgres_data:

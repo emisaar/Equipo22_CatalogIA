@@ -1,10 +1,13 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from app.api import deps
 from app.crud import product
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate, ProductList, SemanticSearchResult, ProductWithScore
+import json
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -94,7 +97,7 @@ def semantic_search_products(
     category: Optional[str] = Query(None, description="Filtrar por categoría"),
     min_price: Optional[float] = Query(None, ge=0, description="Precio mínimo"),
     max_price: Optional[float] = Query(None, ge=0, description="Precio máximo"),
-    min_similarity: float = Query(0.3, ge=0.0, le=1.0, description="Umbral mínimo de similitud (0-1)"),
+    min_similarity: float = Query(0.15, ge=0.0, le=1.0, description="Umbral mínimo de similitud (0-1)"),
 ):
     """
     Búsqueda semántica de productos usando IA.
@@ -109,7 +112,7 @@ def semantic_search_products(
         - `category`: Filtro opcional por categoría
         - `min_price`: Precio mínimo del filtro
         - `max_price`: Precio máximo del filtro
-        - `min_similarity`: Umbral mínimo de similitud (0.3 recomendado, 0.5 restrictivo)
+        - `min_similarity`: Umbral mínimo de similitud (0.15 por defecto, 0.3+ más restrictivo)
 
     Returns:
         `SemanticSearchResult`: Productos ordenados por relevancia con scores de similitud
@@ -229,3 +232,100 @@ def delete_product(
 
     product.delete(db, id=product_id)
     return {"message": "Producto eliminado exitosamente"}
+
+
+@router.post("/batch/upload")
+async def batch_upload_products(
+    *,
+    db: Session = Depends(deps.get_db),
+    file: UploadFile = File(..., description="Archivo JSONL con productos")
+):
+    """
+    Carga en batch de productos desde un archivo JSONL.
+
+    Cada línea del archivo debe ser un JSON válido con los campos del producto.
+    Los embeddings se generan automáticamente con Gemma Embeddings.
+
+    Args:
+        - `file`: Archivo JSONL (cada línea es un producto en formato JSON)
+
+    Returns:
+        `dict`: Estadísticas de la carga (creados, errores, duplicados)
+    """
+    # Validar que sea un archivo JSONL
+    if not file.filename.endswith('.jsonl'):
+        raise HTTPException(
+            status_code=400,
+            detail="El archivo debe tener extensión .jsonl"
+        )
+
+    # Leer contenido del archivo
+    try:
+        content = await file.read()
+        lines = content.decode('utf-8').strip().split('\n')
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error al leer el archivo: {str(e)}"
+        )
+
+    # Estadísticas
+    stats = {
+        "total_lines": len(lines),
+        "created": 0,
+        "duplicated": 0,
+        "errors": 0,
+        "error_details": []
+    }
+
+    logger.info(f"Iniciando carga batch de {len(lines)} productos")
+
+    # Procesar cada línea
+    for line_num, line in enumerate(lines, 1):
+        # Saltar líneas vacías
+        if not line.strip():
+            continue
+
+        try:
+            # Parsear JSON
+            product_data = json.loads(line)
+
+            # Validar con schema
+            product_in = ProductCreate(**product_data)
+
+            # Verificar si ya existe
+            existing = product.get_by_ean(db, ean=product_in.ean)
+            if existing:
+                stats["duplicated"] += 1
+                logger.warning(f"Línea {line_num}: Producto duplicado (EAN: {product_in.ean})")
+                continue
+
+            # Crear producto (genera embedding automáticamente)
+            product.create(db, obj_in=product_in)
+            stats["created"] += 1
+
+            # Log de progreso cada 10 productos
+            if stats["created"] % 10 == 0:
+                logger.info(f"Progreso: {stats['created']} productos creados")
+
+        except json.JSONDecodeError as e:
+            stats["errors"] += 1
+            error_msg = f"Línea {line_num}: JSON inválido - {str(e)}"
+            stats["error_details"].append(error_msg)
+            logger.error(error_msg)
+
+        except Exception as e:
+            stats["errors"] += 1
+            error_msg = f"Línea {line_num}: Error - {str(e)}"
+            stats["error_details"].append(error_msg)
+            logger.error(error_msg)
+
+    logger.info(
+        f"Carga batch completada: {stats['created']} creados, "
+        f"{stats['duplicated']} duplicados, {stats['errors']} errores"
+    )
+
+    return {
+        "message": "Carga batch completada",
+        "statistics": stats
+    }

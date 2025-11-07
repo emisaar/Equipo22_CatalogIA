@@ -144,7 +144,7 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
         category: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
-        min_similarity: float = 0.3
+        min_similarity: float = 0.15
     ) -> List[Tuple[Product, float]]:
         """
         Búsqueda semántica de productos usando embeddings y similitud de coseno.
@@ -156,10 +156,7 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
             category: Filtro opcional por categoría
             min_price: Precio mínimo opcional
             max_price: Precio máximo opcional
-            min_similarity: Umbral mínimo de similitud (0-1). Valores recomendados:
-                          - 0.5-0.7: Muy restrictivo, solo resultados muy similares
-                          - 0.3-0.5: Balanceado (recomendado)
-                          - 0.1-0.3: Permisivo, más resultados pero menos relevantes
+            min_similarity: Umbral mínimo de similitud (0-1).
 
         Returns:
             Lista de tuplas (producto, similarity_score) ordenadas por similitud
@@ -175,8 +172,8 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
             processed_query = self._preprocess_query(query_text)
             logger.info(f"Búsqueda semántica: '{query_text}' -> '{processed_query}'")
 
-            # Generar embedding de la búsqueda
-            query_embedding = embedding_service.generate_embedding(processed_query)
+            # Generar embedding de la búsqueda (con prefijo retrieval_query)
+            query_embedding = embedding_service.generate_embedding(processed_query, is_query=True)
 
             # Construir query base con distancia de coseno
             # Usamos (1 - cosine_distance) para obtener similitud en vez de distancia
