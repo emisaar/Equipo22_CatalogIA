@@ -214,5 +214,195 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
             # En caso de error, retornar lista vacía en lugar de fallar
             return []
 
+    def get_personalized_recommendations(
+        self,
+        db: Session,
+        *,
+        user_wishlist_products: List[Product],
+        user_purchased_product_ids: List[int] = None,
+        limit: int = 10,
+        min_similarity: float = 0.0,
+        strategy: str = "semantic"
+    ) -> List[Tuple[Product, float]]:
+        """
+        Genera recomendaciones personalizadas basadas en el wishlist del usuario.
+
+        Args:
+            db: Sesión de base de datos
+            user_wishlist_products: Lista de productos en el wishlist del usuario
+            user_purchased_product_ids: IDs de productos ya comprados (para excluir)
+            limit: Número máximo de recomendaciones
+            min_similarity: Umbral mínimo de similitud (0-1)
+            strategy: Estrategia ("semantic", "category", "hybrid")
+
+        Returns:
+            Lista de tuplas (producto, similarity_score) ordenadas por relevancia
+        """
+        try:
+            if not user_wishlist_products:
+                logger.info("Wishlist vacío, retornando productos populares")
+                return self._get_popular_products(db, limit=limit)
+
+            exclude_ids = [p.id for p in user_wishlist_products]
+            if user_purchased_product_ids:
+                exclude_ids.extend(user_purchased_product_ids)
+
+            logger.info(f"Generando recomendaciones con estrategia '{strategy}' para {len(user_wishlist_products)} productos en wishlist")
+
+            if strategy == "semantic" or strategy == "hybrid":
+                return self._recommend_by_semantic_similarity(
+                    db=db,
+                    wishlist_products=user_wishlist_products,
+                    exclude_ids=exclude_ids,
+                    limit=limit,
+                    min_similarity=min_similarity
+                )
+            elif strategy == "category":
+                return self._recommend_by_category(
+                    db=db,
+                    wishlist_products=user_wishlist_products,
+                    exclude_ids=exclude_ids,
+                    limit=limit
+                )
+            else:
+                logger.warning(f"Estrategia desconocida '{strategy}', usando 'semantic'")
+                return self._recommend_by_semantic_similarity(
+                    db=db,
+                    wishlist_products=user_wishlist_products,
+                    exclude_ids=exclude_ids,
+                    limit=limit,
+                    min_similarity=min_similarity
+                )
+
+        except Exception as e:
+            logger.error(f"Error en recomendaciones personalizadas: {str(e)}", exc_info=True)
+            return []
+
+    def _recommend_by_semantic_similarity(
+        self,
+        db: Session,
+        wishlist_products: List[Product],
+        exclude_ids: List[int],
+        limit: int,
+        min_similarity: float
+    ) -> List[Tuple[Product, float]]:
+        """
+        Recomendaciones basadas en similitud semántica con el embedding promedio del wishlist.
+        """
+        embeddings = [p.product_embedding for p in wishlist_products if p.product_embedding is not None]
+
+        if not embeddings:
+            logger.warning("No hay embeddings en los productos del wishlist")
+            return []
+
+        logger.info(f"Calculando recomendaciones desde {len(embeddings)} productos en wishlist")
+
+        # Calcular centroide (promedio) de los embeddings
+        avg_embedding = [sum(dim) / len(embeddings) for dim in zip(*embeddings)]
+
+        # Buscar productos similares al centroide
+        similarity_expr = (1 - Product.product_embedding.cosine_distance(avg_embedding))
+
+        total_available = db.query(func.count(Product.id)).filter(
+            Product.product_embedding.isnot(None),
+            ~Product.id.in_(exclude_ids)
+        ).scalar()
+
+        query = db.query(
+            Product,
+            similarity_expr.label('similarity')
+        ).filter(
+            Product.product_embedding.isnot(None),
+            ~Product.id.in_(exclude_ids)
+        )
+
+        # Aplicar umbral de similitud (reducir automáticamente para datasets pequeños)
+        effective_threshold = min_similarity
+        if total_available < 20 and min_similarity > 0:
+            effective_threshold = max(0.05, min_similarity * 0.5)
+            logger.info(f"Dataset pequeño detectado, reduciendo umbral de {min_similarity} a {effective_threshold}")
+
+        if effective_threshold > 0:
+            query = query.filter(similarity_expr >= effective_threshold)
+
+        results = query.order_by(similarity_expr.desc()).limit(limit).all()
+
+        if results:
+            similarities = [float(sim) for _, sim in results]
+            logger.info(f"Recomendaciones semánticas: {len(results)} productos encontrados")
+            logger.info(f"Rango de similitud: {min(similarities):.3f} - {max(similarities):.3f}")
+        else:
+            logger.warning(f"No se encontraron recomendaciones semánticas con threshold {effective_threshold}")
+            # Intentar sin threshold como último recurso
+            if effective_threshold > 0:
+                logger.info("Intentando sin threshold...")
+                query_no_threshold = db.query(
+                    Product,
+                    similarity_expr.label('similarity')
+                ).filter(
+                    Product.product_embedding.isnot(None),
+                    ~Product.id.in_(exclude_ids)
+                )
+                results = query_no_threshold.order_by(similarity_expr.desc()).limit(limit).all()
+                if results:
+                    similarities = [float(sim) for _, sim in results]
+                    logger.info(f"Encontrados {len(results)} productos sin threshold. Similitud: {min(similarities):.3f} - {max(similarities):.3f}")
+
+        return [(product, float(similarity)) for product, similarity in results]
+
+    def _recommend_by_category(
+        self,
+        db: Session,
+        wishlist_products: List[Product],
+        exclude_ids: List[int],
+        limit: int
+    ) -> List[Tuple[Product, float]]:
+        """
+        Recomendaciones basadas en las categorías más frecuentes del wishlist.
+        """
+        from collections import Counter
+
+        categories = [p.category for p in wishlist_products if p.category]
+        if not categories:
+            return []
+
+        category_counts = Counter(categories)
+        most_common_category = category_counts.most_common(1)[0][0]
+
+        logger.info(f"Categoría más común en wishlist: {most_common_category}")
+
+        # Normalizar rating (0-5) a score (0-1)
+        normalized_score = (Product.rating / 5.0).label('score')
+
+        results = db.query(
+            Product,
+            normalized_score
+        ).filter(
+            Product.category == most_common_category,
+            ~Product.id.in_(exclude_ids)
+        ).order_by(Product.rating.desc()).limit(limit).all()
+
+        logger.info(f"Recomendaciones por categoría: {len(results)} productos encontrados")
+        return [(product, float(score)) for product, score in results]
+
+    def _get_popular_products(
+        self,
+        db: Session,
+        limit: int
+    ) -> List[Tuple[Product, float]]:
+        """
+        Retorna productos populares como fallback cuando el wishlist está vacío.
+        Usa rating como criterio de popularidad.
+        """
+        normalized_score = (Product.rating / 5.0).label('score')
+
+        results = db.query(
+            Product,
+            normalized_score
+        ).order_by(Product.rating.desc()).limit(limit).all()
+
+        logger.info(f"Productos populares (fallback): {len(results)} productos encontrados")
+        return [(product, float(score)) for product, score in results]
+
 
 product = CRUDProduct(Product)

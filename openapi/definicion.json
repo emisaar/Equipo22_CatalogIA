@@ -1163,6 +1163,97 @@
           }
         }
       }
+    },
+    "/api/v1/recommendations/personalized": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Personalized Recommendations",
+        "description": "Obtener recomendaciones personalizadas basadas en el wishlist del usuario.\n\nUtiliza IA para analizar los productos en tu wishlist y recomendar productos similares.\n\n**Estrategias:**\n- `semantic`: Similitud semántica con embeddings de IA (recomendado)\n- `category`: Productos de tus categorías favoritas\n- `hybrid`: Combina ambas estrategias\n\n**Notas:**\n- Si wishlist está vacío, retorna productos populares\n- Scores: 0 a 1 (1 = más similar)\n- Requiere autenticación (JWT)",
+        "operationId": "get_personalized_recommendations_api_v1_recommendations_personalized_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Número de recomendaciones",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Número de recomendaciones"
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estrategia: 'semantic', 'category', 'hybrid'",
+              "default": "semantic",
+              "title": "Strategy"
+            },
+            "description": "Estrategia: 'semantic', 'category', 'hybrid'"
+          },
+          {
+            "name": "min_similarity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0,
+              "description": "Umbral mínimo de similitud (0-1). 0=sin filtro, 0.3+=restrictivo",
+              "default": 0.0,
+              "title": "Min Similarity"
+            },
+            "description": "Umbral mínimo de similitud (0-1). 0=sin filtro, 0.3+=restrictivo"
+          },
+          {
+            "name": "exclude_purchased",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Excluir productos ya comprados",
+              "default": false,
+              "title": "Exclude Purchased"
+            },
+            "description": "Excluir productos ya comprados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2142,6 +2233,57 @@
         ],
         "title": "ProductWithScore",
         "description": "Producto con score de similitud semántica."
+      },
+      "RecommendationResult": {
+        "properties": {
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ProductWithScore-Output"
+            },
+            "type": "array",
+            "title": "Products"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "strategy": {
+            "type": "string",
+            "title": "Strategy",
+            "description": "Estrategia de recomendación utilizada"
+          },
+          "wishlist_size": {
+            "type": "integer",
+            "title": "Wishlist Size",
+            "description": "Número de productos en el wishlist del usuario"
+          },
+          "min_similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Similarity",
+            "description": "Umbral mínimo de similitud aplicado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "products",
+          "total",
+          "limit",
+          "strategy",
+          "wishlist_size"
+        ],
+        "title": "RecommendationResult",
+        "description": "Resultado de recomendaciones personalizadas con scores de similitud."
       },
       "SemanticSearchResult": {
         "properties": {

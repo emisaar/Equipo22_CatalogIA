@@ -65,3 +65,13 @@ class SemanticSearchResult(BaseModel):
     skip: int
     limit: int
     min_similarity: Optional[float] = Field(None, description="Umbral mínimo de similitud aplicado")
+
+
+class RecommendationResult(BaseModel):
+    """Resultado de recomendaciones personalizadas con scores de similitud."""
+    products: List[ProductWithScore]
+    total: int
+    limit: int
+    strategy: str = Field(..., description="Estrategia de recomendación utilizada")
+    wishlist_size: int = Field(..., description="Número de productos en el wishlist del usuario")
+    min_similarity: Optional[float] = Field(None, description="Umbral mínimo de similitud aplicado")
